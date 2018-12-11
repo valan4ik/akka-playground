@@ -12,6 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 object BossyActor {
   def props(message: String, printerActor: ActorRef): Props = Props(new BossyActor(message, printerActor))
   case object Sleep
+  case object SleepNow
 }
 
 class BossyActor(message: String, printerActor: ActorRef) extends Actor {
@@ -22,12 +23,16 @@ class BossyActor(message: String, printerActor: ActorRef) extends Actor {
     case Sleep =>
       val recipient = sender()
       printerActor ! GoToSleep("hello world")
+    case SleepNow =>
+      val recipient = sender()
+      printerActor ! GoToSleepWithoutFuture
   }
 }
 
 object SleepyActor {
   def props: Props = Props[SleepyActor]
   final case class GoToSleep(greeting: String)
+  final case class GoToSleepWithoutFuture(greeting: String)
 }
 
 class SleepyActor extends Actor with ActorLogging {
@@ -55,6 +60,11 @@ class SleepyActor extends Actor with ActorLogging {
 
   def receive = {
     case GoToSleep(greeting) => fallAsleep
+    case GoToSleepWithoutFuture => {
+      log.info("Go to sleep without future")
+      Thread.sleep(10000)
+      log.info("Slept for a while: woke up now")
+    }
   }
 }
 
@@ -75,7 +85,6 @@ object AkkaQuickstart extends App {
 
   // =============================================
   // Test akka pattern and future/future in future
-//  howdyGreeter ! Sleep
 //  val future = howdyGreeter ? Sleep
 //  future.map {
 //    a => println("Future is finished")
@@ -85,14 +94,24 @@ object AkkaQuickstart extends App {
   // =============================================
 
   // =============================================
-  // Test timeouts
-  howdyGreeter ! Sleep
-  val future2 = howdyGreeter ? Sleep
-  Utils.withTimeout(future2, 1500).map {
+  // Test akka pattern and future/future in future
+  val future = howdyGreeter ? SleepNow
+  future.map {
     a => println("Future is finished")
   }.recover {
     case e: Exception => logger.info(e.getMessage)
   }
+  // =============================================
+
+
+  // =============================================
+  // Test timeouts
+//  val future2 = howdyGreeter ? Sleep
+//  Utils.withTimeout(future2, 1500).map {
+//    a => println("Future is finished")
+//  }.recover {
+//    case e: Exception => logger.info(e.getMessage)
+//  }
   // =============================================
 
 }
